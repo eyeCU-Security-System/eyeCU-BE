@@ -23,9 +23,12 @@ def home():
 @app.route('/accounts')
 def viewAcc():
     db = get_db()
-    cursor = db.execute('SELECT username FROM users')
+    statement = f"SELECT * FROM users"
+    cursor = db.execute(statement)
     results = cursor.fetchall()
-    return f"<h1>username: {results[0]['username']}"
+    return jsonify(results)
+    #return jsonify([tuple(row) for row in results])
+    #return f"<h1>username: {results[0]['username']}"
 
 #--------REGISTRATION CODE --------------------------------#
 #TODO:
