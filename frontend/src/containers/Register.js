@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+/*
 import Form from "react-bootstrap/Form";
 import { useHistory } from "react-router-dom";
 import LoaderButton from "../components/LoaderButton";
@@ -8,7 +9,7 @@ import { onError } from "../lib/errorLib";
 import "./Register.css";
 
 export default function Register(){
-    
+    /*
     const[fields, handleFieldChange] = useFormFields({
         username: "",
         password: "",
@@ -142,4 +143,4 @@ export default function Register(){
 
 }
 
-
+*/

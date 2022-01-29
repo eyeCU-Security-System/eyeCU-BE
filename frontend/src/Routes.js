@@ -3,7 +3,7 @@ import {Route, Switch} from "react-router-dom";
 import Home from "./containers/Home";
 import NotFound from "./containers/NotFound";
 import Login from "./containers/Login";
-import Register from "./containers/Register";
+//import Register from "./containers/Register";
 
 export default function Routes(){
     /**
@@ -18,9 +18,12 @@ export default function Routes(){
             <Route exact path="/Login">
                 <Login />
             </Route>
-            <Route exact path="/Register">
+
+            {/* <Route exact path="/Register">
                 <Register />
-            </Route>
+            </Route> 
+            */}
+
             <Route>
                 <NotFound />
             </Route>
