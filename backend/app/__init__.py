@@ -15,6 +15,7 @@ import sys
 from os import path
 sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
 from app import database
+from app.service import AccountService
 
 app = Flask(__name__)
 #app.secret_key = "iwanttodie"

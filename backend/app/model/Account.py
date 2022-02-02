@@ -14,14 +14,6 @@ class Account(Base):
     
     def __repr__(self):
         return f"<Account {self.username}>"
-    
-    # def save(self):
-    #     session.add(self)
-    #     session.commit()
-        
-    # def delete(self):
-    #     session.delete(self)
-    #     session.commit()
         
     def update(self, username, password, phone, email):
         self.username = username

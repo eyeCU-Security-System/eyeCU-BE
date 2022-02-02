@@ -6,6 +6,7 @@ from app.model.BaseModel import Base
 from app.model import Account, Member, Device, Permission
 
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 #Create database if needed based on what defined in declarative base class
@@ -15,3 +16,7 @@ db_url = environ.get('DATABASE_URL') or \
 engine = create_engine(db_url)
 
 Base.metadata.create_all(engine)
+
+
+Session = sessionmaker(bind=engine)
+session = Session()
