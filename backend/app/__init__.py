@@ -12,6 +12,9 @@ from flask_jwt_extended import JWTManager
 
 app = Flask(__name__)
 #app.secret_key = "iwanttodie"
+
+#visit http://127.0.0.1:5000/docs to view Flask APIs
+#like GET and POST functions
 api = Api(app, doc='/docs')
 app.config.from_object(Config)
 
@@ -73,6 +76,7 @@ userReg_model = api.model(
         "lastName":fields.String()
     }
 )    
+<<<<<<< HEAD
 
 
 '''
@@ -89,3 +93,5 @@ userLogin_model = api.model(
 
 
 #----------model {serializer} end-----------------#
+=======
+>>>>>>> 7f31f89ec61c3f003d88ba3c1b36d98fb25e0dda
