@@ -6,9 +6,15 @@ from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from flask_restx import Api, Resource, fields
 import sqlalchemy
+from sqlalchemy import *
 from config import Config
 from flask_jwt_extended import JWTManager
 
+#code snippet for importing database data model 
+import sys
+from os import path
+sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
+from app import database
 
 app = Flask(__name__)
 #app.secret_key = "iwanttodie"
@@ -70,3 +76,5 @@ userReg_model = api.model(
         "lastName":fields.String()
     }
 )    
+
+
