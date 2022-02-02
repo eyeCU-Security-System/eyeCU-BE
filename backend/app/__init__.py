@@ -57,7 +57,13 @@ def make_shell_context():
         "User": User
     }
     
-#model {serializer}
+    
+#----------model {serializer}-----------------#
+
+'''
+this model is the json structure
+required for passing data to register users
+'''
 userReg_model = api.model(
     "Register",
     {
@@ -67,3 +73,19 @@ userReg_model = api.model(
         "lastName":fields.String()
     }
 )    
+
+
+'''
+this model is the json structure
+required for passing data to login users
+'''
+userLogin_model = api.model(
+    "Login",
+    {
+        "username":fields.String(),
+        "password":fields.String()
+    }
+)
+
+
+#----------model {serializer} end-----------------#

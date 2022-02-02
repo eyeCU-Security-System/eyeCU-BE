@@ -1,9 +1,11 @@
+from venv import create
 from app import app, get_db, api, db
 from flask import json, jsonify, request
 from app.form import RegisterForm
 from flask_restx import Api, Resource
 from app.models import User
-from app.__init__ import userReg_model, jwt
+from app.__init__ import userReg_model, jwt, userLogin_model
+from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -11,7 +13,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 class LandingPage(Resource):
     def get(self):
         return {"hello":"world"}
-    
+     
     
 #--------REGISTRATION CODE --------------------------------#
 @api.route('/register')
@@ -53,27 +55,41 @@ class register(Resource):
 #--------REGISTRATION CODE END--------------------------------#
     
     
-    
+#--------LOGIN CODE --------------------------------#
 #JWT Auth
 @api.route('/login')
 class login(Resource):
     #Reference
     #https://www.youtube.com/watch?v=GXVvBU_Vynk&ab_channel=SsaliJonathan
     
+    
+    @api.expect(userLogin_model)
     def post(self):
-        pass
+        
+        data = request.get_json()
+        
+        username = data.get('username')
+        password = data.get('password')    
+        
+        db_user = User.query.filter_by(username = username).first()
+        
+        if db_user and check_password_hash(db_user.password, password):
+            access_token = create_access_token(identity=db_user.username)
+            refresh_token = create_refresh_token(identity=db_user.username)
+            return jsonify(
+                {"access token": access_token,
+                 "refresh token": refresh_token
+                 }
+            )
+#--------LOGIN CODE END--------------------------------#    
     
     
     
     
-    
-    
-    
-
-# @app.route('/')
-# def landing():
-#     return '<h1> Hello World </h1>'
-
+'''
+BELOW ARE TESTS DONE WITH DIRECT SQL QUERIES 
+NOT SQLALCHEMY
+'''
 
 # #test
 # @app.route('/home')
