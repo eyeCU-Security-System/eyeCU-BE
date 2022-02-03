@@ -1,5 +1,5 @@
 #kept in separate file to avoid tempering
-from app import app
+from app import webapp
 from app import manager
 
 
@@ -23,4 +23,5 @@ RUN APP.RUN LIKE USUAL
 #run application
 if __name__=='__main__':
     #manager.run()
-    app.run(debug = True)
+    webapp.run(debug = True)
+    

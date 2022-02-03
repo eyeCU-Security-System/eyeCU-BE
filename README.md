@@ -1,3 +1,12 @@
+----CRUCIAL----:
+Removed venv from git due to size. PLEASE CREATE THE VENV AND INSTALL LIBRARIES EVERY PULL
+1. cd to root directory
+2. pip install virtualenv
+3. WINDOWS: python -m virtualenv venv
+you should now see a folder called venv pop up in root dir.
+
+
+
 BEFORE ANY CHANGES TO BACKEND CODE OR TO START BACKEND
 1. open terminal
 2. cd to root project directory
@@ -9,6 +18,8 @@ PLEASE UPDATE requirements.txt BEFORE ANY PUSH TO GIT
 1. in terminal with venv running
 2. ensure path is to root directory not in backend folder
 3. run: ' pip freeze > requirements.txt '
+
+
 
 
 """

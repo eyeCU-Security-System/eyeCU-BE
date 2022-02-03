@@ -9,21 +9,28 @@ import sqlalchemy
 from config import Config
 from flask_jwt_extended import JWTManager
 
+#code snippet for importing database data model 
+import sys
+from os import path
+sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
+from app import database
+#from app.services import AccountService
 
-app = Flask(__name__)
+
+
+webapp = Flask(__name__)
 #app.secret_key = "iwanttodie"
 
 #visit http://127.0.0.1:5000/docs to view Flask APIs
 #like GET and POST functions
-api = Api(app, doc='/docs')
-app.config.from_object(Config)
+api = Api(webapp, doc='/docs')
+webapp.config.from_object(Config)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-manager = Manager(app)
+db = SQLAlchemy(webapp)
+migrate = Migrate(webapp, db)
+manager = Manager(webapp)
 manager.add_command('db', MigrateCommand)
-jwt = JWTManager(app)
-
+jwt = JWTManager(webapp)
 
 def connect_db():
     sql = sqlite3.connect('.\database\eyecu.db')
@@ -42,27 +49,26 @@ def get_db():
 
 
 #close db connection when a request is done
-@app.teardown_appcontext
+@webapp.teardown_appcontext
 def close_db(error):
     if hasattr(g, 'sqlite3'):
         g.sqlite3.close()
 
 
 #imported after declaring so attributes has chance to be created first
-from app import routes, models, form
-from app.models import User
+from app import routes, form
+from app.model.Account import Account
 
 
-@app.shell_context_processor
+@webapp.shell_context_processor
 def make_shell_context():
     return {
         "db": db,
-        "User": User
+        "Account": Account
     }
     
     
 #----------model {serializer}-----------------#
-
 '''
 this model is the json structure
 required for passing data to register users
@@ -72,11 +78,9 @@ userReg_model = api.model(
     {
         "username":fields.String(),
         "password":fields.String(),
-        "firstName":fields.String(),
-        "lastName":fields.String()
+        "email":fields.String(),
     }
 )    
-<<<<<<< HEAD
 
 
 '''
@@ -93,5 +97,3 @@ userLogin_model = api.model(
 
 
 #----------model {serializer} end-----------------#
-=======
->>>>>>> 7f31f89ec61c3f003d88ba3c1b36d98fb25e0dda

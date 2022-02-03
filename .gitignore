@@ -1,1 +1,5 @@
 frontend/node_modules/
+venv/
+__pycache/
+backend/__pycache__
+backend/app/__pycache__
