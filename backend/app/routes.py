@@ -5,8 +5,8 @@ from flask_restx import Api, Resource
 from app.model.Account import Account
 from app.database import session
 from app.services.AccountServices import AccountServices
-from app.__init__ import userReg_model, jwt, userLogin_model
-from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required
+from app.__init__ import jwt, userReg_model, userLogin_model
+from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -55,8 +55,7 @@ class register(Resource):
         #communicate with frontend
         access_token = create_access_token(identity=username)
         return jsonify(
-                {"token": access_token,
-                 "status" : 200}
+                {"token": access_token}
         )
         # #validate username is new and not taken
         # username = data.get('username')
@@ -106,10 +105,7 @@ class login(Resource):
             access_token = create_access_token(identity=db_user.username)
             refresh_token = create_refresh_token(identity=db_user.username)
             return jsonify(
-                {"access token": access_token,
-                 "refresh token": refresh_token,
-                 "status":200
-                 }
+                {"access token": access_token}
             )
         else:
             return jsonify({"message": "Wrong Credentials. No account associated.",
@@ -119,68 +115,49 @@ class login(Resource):
     
     
     
-    
-    
+#-------- DASH CODE BEGIN -----------------------------#
 '''
-BELOW ARE TESTS DONE WITH DIRECT SQL QUERIES 
-NOT SQLALCHEMY
+test to protect paths from non logged in visits.
 '''
-# #test
-# @app.route('/home')
-# def home():
-#     return jsonify(hello = "world",
-#                    status = 200,
-#                    mimetype = 'application/json') #returns json associated with this route
+@api.route("/dash")
+class dashboard(Resource):
     
     
-# #test
-# @app.route('/accounts')
-# def viewAcc():
-#     db = get_db()
-#     statement = f"SELECT * FROM users"
-#     cursor = db.execute(statement)
-#     results = cursor.fetchall()
-#     return jsonify(results)
-#     #return jsonify([tuple(row) for row in results])
-#     #return f"<h1>username: {results[0]['username']}"
+    #this function is protected.
+    @jwt_required()
+    def get(self):
+        #gets current user by mapping jwt token to username
+        currUser = get_jwt_identity()
+        return jsonify({"Logged In": currUser})
+    
+#-------- DASH CODE END -----------------------------#        
+        
 
-# #--------REGISTRATION CODE --------------------------------#
-# #TODO:
-# '''something with POST AND GET for front end.
-#     figure out how to pass data to and from REACT.'''
-
-# @app.route('/register', methods = ['POST', 'GET'])
-# def register():
-#     regForm = RegisterForm()
-    
-#     #CLI FOR TESTING
-#     #remove when connected to FRONTEND
-#     username = input('username: ')
-#     password = input('password: ')
-#     firstName = input('firstName: ')
-#     lastName = input('lastName: ')
-    
-    
-#     #connects and gets db access
-#     db = get_db()  
-#     #prepares statement for SQL execution                                 
-#     statement = f"SELECT username FROM users WHERE username = '{username}'"
-#     cursor = db.execute(statement)
-#     #checks for existing username so only fetch 1 occurance
-#     results = cursor.fetchone()
-#     if results:
-#         print('username has been taken')
-#         return f"<h1> username taken </h1>"
-#     else:
-#         if not results:
-#             #insert into table
-#             db.execute('INSERT INTO users (username, password, firstName, lastName) VALUES (?,?,?,?)',
-#                        (username, password, firstName, lastName))
-#             db.commit()
-#             db.close()
-#             print('account registered')
-#             return f"<h1> account made </h1>"
-    
-# #---------REGISTRATION CODE END--------------------------------$    
-            
-    
+ 
+        
+        
+        
+#-------- SERVO CONTROL CODE BEGIN -----------------------------#   
+'''
+param: string
+pass "OPEN" to initiate OPEN SERVO logic
+pass "CLOSE" to initiate CLOSE SERVO logic
+'''          
+@api.route("/dash/<string:func>")
+class lockFunction(Resource):
+    @jwt_required()
+    def post(self, func):
+        if func == 'OPEN':
+            return jsonify({"operation" : "OPEN",
+                        "success": "TRUE"})
+        elif func == 'CLOSE':
+            return jsonify({"operation" : "CLOSE",
+                        "success": "TRUE"})
+        else:
+            return jsonify({"error": "unable to control servo"})
+        
+        
+        
+#-------- SERVO CONTROL CODE BEGIN -----------------------------#           
+  
+        
