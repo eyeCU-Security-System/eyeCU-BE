@@ -30,8 +30,3 @@ class Account(Base):
         
     
         
-
-# create database. In case needed to remake database, delete current eyecu.db
-# and run code below and then check to see if db is created then comment out
-#db.create_all()
-#db.session.commit()

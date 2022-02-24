@@ -3,7 +3,10 @@ from os import path, environ
 #Use singleton pattern
 #Note: singleton means only one copy of the Base is created for every model class
 from app.model.BaseModel import Base
-from app.model.Account import Account#, Member, Device, Permission
+
+#IMPORT ALL TABLES HERE FOR NOW#
+from app.model.Account import Account
+from app.model.Faces import Faces
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

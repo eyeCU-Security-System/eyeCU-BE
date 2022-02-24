@@ -96,4 +96,15 @@ userLogin_model = api.model(
 )
 
 
+userFace_model = api.model(
+    "Face",
+    {
+        "picture_file": fields.String(),
+        "face_name": fields.String(),
+        "mimtype": fields.String(),
+        "user_id": fields.Integer()
+    }
+)
+
+
 #----------model {serializer} end-----------------#

@@ -19,9 +19,7 @@ class AccountServices():
         #         "error": 400,
         #         "message": f"{username} already taken. Please try again"
         #     })
-            
-            
-            
+                  
         #appends data
         new_user = Account(
             username = username,
@@ -32,8 +30,6 @@ class AccountServices():
         session.add(new_user)  # Add the user
         session.commit()  # Commit the change
         
-        
-        
         # #communicate with frontend
         # access_token = create_access_token(identity=username)
         # return jsonify(
@@ -43,6 +39,7 @@ class AccountServices():
 
 
 
+    #------ NOT TESTED YET -------#
     def delete(username):
         #queries table User for an existing username
         db_user = session.query(Account).filter_by(username = username).first()
@@ -60,7 +57,10 @@ class AccountServices():
         return {
             "message": "deleted"
         }
+     #------ NOT TESTED YET -------#
 
+
+     #------ NOT TESTED YET -------#
     def update(username, password, email):
         #queries table User for an existing username
         db_user = session.query(Account).filter_by(username = username).first()
@@ -81,3 +81,4 @@ class AccountServices():
         return {
             db_user
         }
+     #------ NOT TESTED YET -------#

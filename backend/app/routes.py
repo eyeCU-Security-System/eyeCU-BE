@@ -1,14 +1,17 @@
+import os
 from app import webapp, get_db, api, db
-from flask import json, jsonify, request
+from flask import json, jsonify, request, send_from_directory
 from app.form import RegisterForm
+from app.model.Faces import Faces
 from flask_restx import Api, Resource
 from app.model.Account import Account
 from app.database import session
 from app.services.AccountServices import AccountServices
-from app.__init__ import jwt, userReg_model, userLogin_model
+from app.services.FaceServices import FaceServices
+from app.__init__ import jwt, userReg_model, userLogin_model, userFace_model
 from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from werkzeug.utils import secure_filename
 
 @api.route('/eyecu')
 class LandingPage(Resource):
@@ -57,29 +60,6 @@ class register(Resource):
         return jsonify(
                 {"token": access_token}
         )
-        # #validate username is new and not taken
-        # username = data.get('username')
-        # #query through SQLAlchemy ORM
-        # #queries table User for an existing username
-        # db_user = Account.query.filter_by(username = username).first()
-        # if db_user is not None:
-        #     return jsonify({"message":f"{username} already taken. Please try again"})
-        
-        # #appends data
-        # new_user = User(
-        #     username = data.get('username'),
-        #     password = generate_password_hash(data.get('password')),
-        #     firstName = data.get('firstName'),
-        #     lastName = data.get('lastName')
-        # )
-        # #commits to db
-        # new_user.save()
-        
-        # #communicate with frontend
-        # access_token = create_access_token(identity=username)
-        # return jsonify(
-        #         {"token": access_token}
-        #     )
 #--------REGISTRATION CODE END--------------------------------#
     
     
@@ -111,8 +91,7 @@ class login(Resource):
             return jsonify({"message": "Wrong Credentials. No account associated.",
                             "error": 400})
 #--------LOGIN CODE END--------------------------------#    
-    
-    
+
     
     
 #-------- DASH CODE BEGIN -----------------------------#
@@ -132,8 +111,62 @@ class dashboard(Resource):
     
 #-------- DASH CODE END -----------------------------#        
         
+#------- UPLOAD FACE CODE BEGIN -------#
+'''
+upload face picture
+''' 
+@api.route("/dash/register_face")
+class registerFace(Resource):
+    
+    @jwt_required()
+    @api.expect(userFace_model)
+    def post(self):
+        pic = request.files["image"]
+        
+        if not pic:
+            return jsonify({"message":"No picture uploaded",
+                            "error": 400})
+        
+        
+        
+        
+        filename = secure_filename(pic.filename)
+        face_name = request.form.get("data")
+        mimetype = pic.mimetype
+        curr_user = get_jwt_identity()
+        userObj = session.query(Account).filter_by(username = curr_user).first()
+        
+        
+        FaceServices.init_face(pic, filename, face_name, mimetype, userObj.id)
 
+         
+#------- UPLOAD FACE CODE END -------#
  
+#------- RETURN FACE CODE BEGIN -------# 
+'''
+THIS SEGMENT IS FOR TESTING PURPOSES. 
+'''
+@api.route("/get_face/<int:id>")
+class getFace(Resource):
+    
+    
+    '''
+    SO FAR, ONLY RETURNS 1 PICTURE AT A TIME.
+    FOR EFFICIENCY, SHOULD BE ABLE TO RETURN ALL FACES REGISTERED UNDER AN ACCOUNT.
+    '''
+    def get(self, id):
+        #img_file = session.query(Faces).filter_by(user_id = id).first()
+        img_file = "0c7a8f34ab739850.jpg"
+        
+       # print(img_file.picture_file)
+        print(os.path.join(webapp.root_path, 'model\\faces'))
+        return send_from_directory(os.path.join(webapp.root_path, "model\\faces"), img_file)
+        
+        
+
+
+
+#------- RETURN FACE CODE END -------# 
         
         
         
