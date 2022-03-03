@@ -1,6 +1,7 @@
 import os
+import threading
 from app import webapp, get_db, api, db
-from flask import json, jsonify, request, send_from_directory
+from flask import json, jsonify, request, send_from_directory, Response
 from app.form import RegisterForm
 from app.model.Faces import Faces
 from flask_restx import Api, Resource
@@ -12,6 +13,21 @@ from app.__init__ import jwt, userReg_model, userLogin_model, userFace_model
 from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import asyncio
+
+#response for invalid data or errors
+def user_error_to_json(error_message):
+    return Response(json.dumps(error_message), status=400, mimetype='application/json')
+
+
+#response for successful GETs
+def positiveReponse(message): # this takes in a dictionary and makes it into a positive json 
+    return Response(json.dumps(message), status=200, mimetype='application/json')
+
+#response for successful POSTs
+def createdResponse(message):
+    return Response(json.dumps(message), status=201, mimetype='application/json')
+
 
 @api.route('/eyecu')
 class LandingPage(Resource):
@@ -20,7 +36,7 @@ class LandingPage(Resource):
      
     
 #--------REGISTRATION CODE --------------------------------#
-@api.route('/register')
+@api.route('/signup')
 class register(Resource):
     #Reference
     #https://www.youtube.com/watch?v=GXVvBU_Vynk&ab_channel=SsaliJonathan
@@ -47,19 +63,15 @@ class register(Resource):
         #queries table User for an existing username
         db_user = session.query(Account).filter_by(username = username).first()
         if db_user is not None:
-            return jsonify({
-                "error": 400,
-                "message": f"{username} already taken. Please try again"
-            })
+            return user_error_to_json({"general":f"{username} Already Taken. Please Try Again."})
         
         #appends data if no issues#
         AccountServices.createAcc(username, password, email)
         
         #communicate with frontend
         access_token = create_access_token(identity=username)
-        return jsonify(
-                {"token": access_token}
-        )
+        return createdResponse({"token": access_token})
+
 #--------REGISTRATION CODE END--------------------------------#
     
     
@@ -84,12 +96,11 @@ class login(Resource):
         if db_user and check_password_hash(db_user.password, password):
             access_token = create_access_token(identity=db_user.username)
             refresh_token = create_refresh_token(identity=db_user.username)
-            return jsonify(
-                {"access token": access_token}
-            )
+            return createdResponse({"token": access_token})
         else:
-            return jsonify({"message": "Wrong Credentials. No account associated.",
-                            "error": 400})
+            return user_error_to_json({"general":"Wrong Credentials. Please Try Again."})
+        
+    
 #--------LOGIN CODE END--------------------------------#    
 
     
@@ -112,6 +123,36 @@ class dashboard(Resource):
 #-------- DASH CODE END -----------------------------#        
         
 #------- UPLOAD FACE CODE BEGIN -------#
+@api.expect(userFace_model)
+@asyncio.coroutine
+async def async_upload_face(self):
+    pic = request.files["image"]
+        
+    if not pic:
+        return user_error_to_json({"general": "No File Uploaded."})
+        
+        
+        
+        
+    filename = secure_filename(pic.filename)
+    valid = FaceServices.validate_picture(pic)
+        
+    if valid == 1:
+        face_name = request.form.get("data")
+        mimetype = pic.mimetype
+        curr_user = get_jwt_identity()
+        userObj = session.query(Account).filter_by(username = curr_user).first()
+        
+        
+        await FaceServices.init_face(pic, filename, face_name, mimetype, userObj.id)
+        return createdResponse({"general": "Face Is Recognized and Saved."})
+
+    elif valid > 1:
+        return user_error_to_json({"general": "Too Many Faces Detected. Please Show 1 Face."})
+    elif valid == 0:
+        return user_error_to_json({"general": "No Faces Detected. Please Show 1 Face."})
+
+
 '''
 upload face picture
 ''' 
@@ -121,26 +162,24 @@ class registerFace(Resource):
     @jwt_required()
     @api.expect(userFace_model)
     def post(self):
-        pic = request.files["image"]
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        if not pic:
-            return jsonify({"message":"No picture uploaded",
-                            "error": 400})
-        
-        
-        
-        
-        filename = secure_filename(pic.filename)
-        face_name = request.form.get("data")
-        mimetype = pic.mimetype
-        curr_user = get_jwt_identity()
-        userObj = session.query(Account).filter_by(username = curr_user).first()
+        response = asyncio.run(async_upload_face(self))
+        #response = asyncio.run(async_upload_face(self))
+        return response
         
         
-        FaceServices.init_face(pic, filename, face_name, mimetype, userObj.id)
-
+        
+            
+            
+            
+    
          
 #------- UPLOAD FACE CODE END -------#
+ 
+ 
  
 #------- RETURN FACE CODE BEGIN -------# 
 '''
@@ -162,10 +201,7 @@ class getFace(Resource):
         print(os.path.join(webapp.root_path, 'model\\faces'))
         return send_from_directory(os.path.join(webapp.root_path, "model\\faces"), img_file)
         
-        
-
-
-
+    
 #------- RETURN FACE CODE END -------# 
         
         

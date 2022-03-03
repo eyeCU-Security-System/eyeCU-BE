@@ -8,7 +8,7 @@ from flask_restx import Api, Resource, fields
 import sqlalchemy
 from config import Config
 from flask_jwt_extended import JWTManager
-
+from flask_cors import CORS
 #code snippet for importing database data model 
 import sys
 from os import path
@@ -25,6 +25,8 @@ webapp = Flask(__name__)
 #like GET and POST functions
 api = Api(webapp, doc='/docs')
 webapp.config.from_object(Config)
+CORS(webapp)
+
 
 db = SQLAlchemy(webapp)
 migrate = Migrate(webapp, db)
@@ -101,7 +103,7 @@ userFace_model = api.model(
     {
         "picture_file": fields.String(),
         "face_name": fields.String(),
-        "mimtype": fields.String(),
+        "mimetype": fields.String(),
         "user_id": fields.Integer()
     }
 )
