@@ -1,8 +1,6 @@
 import os
-import threading
 from app import webapp, get_db, api, db
 from flask import json, jsonify, request, send_from_directory, Response
-from app.form import RegisterForm
 from app.model.Faces import Faces
 from flask_restx import Api, Resource
 from app.model.Account import Account
@@ -123,6 +121,9 @@ class dashboard(Resource):
 #-------- DASH CODE END -----------------------------#        
         
 #------- UPLOAD FACE CODE BEGIN -------#
+
+# Asynchronous function to validate face to not stall server
+# Uploads Face and returns appropriate response
 @api.expect(userFace_model)
 @asyncio.coroutine
 async def async_upload_face(self):
@@ -130,53 +131,50 @@ async def async_upload_face(self):
         
     if not pic:
         return user_error_to_json({"general": "No File Uploaded."})
-        
-        
-        
-        
+      
     filename = secure_filename(pic.filename)
-    valid = FaceServices.validate_picture(pic)
-        
+    
+    #Async Call to Validate
+    valid = await FaceServices.validate_picture(pic)
+
     if valid == 1:
         face_name = request.form.get("data")
         mimetype = pic.mimetype
         curr_user = get_jwt_identity()
         userObj = session.query(Account).filter_by(username = curr_user).first()
-        
-        
+
+        #Async Call to Store Face
         await FaceServices.init_face(pic, filename, face_name, mimetype, userObj.id)
         return createdResponse({"general": "Face Is Recognized and Saved."})
-
     elif valid > 1:
         return user_error_to_json({"general": "Too Many Faces Detected. Please Show 1 Face."})
     elif valid == 0:
         return user_error_to_json({"general": "No Faces Detected. Please Show 1 Face."})
 
 
-'''
-upload face picture
-''' 
 @api.route("/dash/register_face")
 class registerFace(Resource):
     
+    '''
+    Creates coroutine to run concurrently 
+    goal: not stall server while running validation and storing
+    '''
     @jwt_required()
     @api.expect(userFace_model)
     def post(self):
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        
+        '''
+        dunno if need these statements
+        '''
+        #asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        # loop = asyncio.new_event_loop()
+        # asyncio.set_event_loop(loop)
         
         response = asyncio.run(async_upload_face(self))
-        #response = asyncio.run(async_upload_face(self))
+        response.close()
+        #loop.close()
         return response
-        
-        
-        
-            
-            
-            
-    
-         
+       
 #------- UPLOAD FACE CODE END -------#
  
  

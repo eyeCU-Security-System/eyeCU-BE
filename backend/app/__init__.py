@@ -58,7 +58,7 @@ def close_db(error):
 
 
 #imported after declaring so attributes has chance to be created first
-from app import routes, form
+from app import routes
 from app.model.Account import Account
 
 
