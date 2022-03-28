@@ -13,7 +13,7 @@ def save_picture(pic_obj, pic_fn): #creates hash for profile pic file
     random_hex = secrets.token_hex(8)
     _, f_ext = os.path.splitext(pic_fn)
     picture_fn= random_hex + f_ext
-    picture_path = os.path.join(webapp.root_path, 'model/faces', picture_fn)
+    picture_path = os.path.join(webapp.root_path, 'model/faces_img', picture_fn)
     pic_obj.seek(0)
     pic_obj.save(picture_path)
     return picture_fn
@@ -40,4 +40,12 @@ class FaceServices():
         face_locations = face_recognition.face_locations(test_image)
         face_encodings = face_recognition.face_encodings(test_image, face_locations)
         return len(face_encodings)
+
+    def return_all_faces():
+        #returns all the faces within db
+        img_file = session.query(Faces).first()
+        return img_file
+
+
+
         

@@ -7,11 +7,17 @@ from app.model.Account import Account
 from app.database import session
 from app.services.AccountServices import AccountServices
 from app.services.FaceServices import FaceServices
+#from app.services.Processing import Processing
 from app.__init__ import jwt, userReg_model, userLogin_model, userFace_model
 from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import asyncio
+import threading
+import socketio
+from flask_socketio import SocketIO
+
+
 
 #response for invalid data or errors
 def user_error_to_json(error_message):
@@ -183,48 +189,52 @@ class registerFace(Resource):
 '''
 THIS SEGMENT IS FOR TESTING PURPOSES. 
 '''
-@api.route("/get_face/<int:id>")
+@api.route("/get_face")
 class getFace(Resource):
-    
-    
-    '''
-    SO FAR, ONLY RETURNS 1 PICTURE AT A TIME.
-    FOR EFFICIENCY, SHOULD BE ABLE TO RETURN ALL FACES REGISTERED UNDER AN ACCOUNT.
-    '''
-    def get(self, id):
-        #img_file = session.query(Faces).filter_by(user_id = id).first()
-        img_file = "0c7a8f34ab739850.jpg"
+    def get(self):
+    #     img_file = session.query(Faces).first()
         
-       # print(img_file.picture_file)
-        print(os.path.join(webapp.root_path, 'model\\faces'))
-        return send_from_directory(os.path.join(webapp.root_path, "model\\faces"), img_file)
-        
+    #     print(img_file.face_name)
+    # #     print(os.path.join(webapp.root_path, 'model\\faces_img'))
+    #     return send_from_directory(os.path.join(webapp.root_path, "model\\faces_img"), img_file.picture_file)
+        # img_obj = Processing.pull_faces()
+        # print(len(img_obj))
+
+        img_file = "fafe4d2d6fc11837.jpg"  
+        proc_vid = Processing()
+
+
+
     
 #------- RETURN FACE CODE END -------# 
         
         
         
-#-------- SERVO CONTROL CODE BEGIN -----------------------------#   
+#-------- SERVO CONTROL CODE BEGIN -----------------------------#
 '''
 param: string
 pass "OPEN" to initiate OPEN SERVO logic
 pass "CLOSE" to initiate CLOSE SERVO logic
 '''          
-@api.route("/dash/<string:func>")
+@api.route("/status/open")
 class lockFunction(Resource):
     @jwt_required()
-    def post(self, func):
-        if func == 'OPEN':
-            return jsonify({"operation" : "OPEN",
-                        "success": "TRUE"})
-        elif func == 'CLOSE':
-            return jsonify({"operation" : "CLOSE",
-                        "success": "TRUE"})
-        else:
-            return jsonify({"error": "unable to control servo"})
-        
+    def post(self):
+        pass
         
         
 #-------- SERVO CONTROL CODE BEGIN -----------------------------#           
   
-        
+
+
+#-------- FR PROCESSING AND STREAMING CODE BEGIN ---------------#
+
+
+
+
+
+
+#-------- FR PROCESSING AND STREAMING CODE END ---------------#
+
+
+
