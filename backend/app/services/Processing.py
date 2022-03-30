@@ -7,19 +7,24 @@ import cv2
 import numpy as np
 import base64
 from os.path import exists
-import requests
+import requests_async as requests
+import http3
 import threading
 from flask import Response
 from flask import Flask
 import argparse
 import os
 import time
+from time import sleep
 from .FaceServices import FaceServices
 from app import webapp
+from app.model.Faces import Faces
+import asyncio
+from app.database import session
 
 device_state = "CLOSE"
 open_timestamp = None
-CLOSE_AFTER = 8
+CLOSE_AFTER = 3
 
 def convert_byte_to_mat(byte):
     nparr = np.frombuffer(byte, np.byte)
@@ -32,8 +37,8 @@ def convert_mat_to_byte(mat):
 
 
 
-# here we are experimenting with the face recog
-# justin_image = face_recognition.load_image_file('./img/john.jpg')
+# # here we are experimenting with the face recog
+# justin_image = face_recognition.load_image_file('./app/model/faces_img/fafe4d2d6fc11837.jpg')
 # justin_face_encoding = face_recognition.face_encodings(justin_image)[0]
 # known_face_encodings = [
 #     justin_face_encoding
@@ -44,18 +49,8 @@ def convert_mat_to_byte(mat):
 
 
 
-# app = Flask(__name__)
-# #, ping_timeout=60, ping_interval=10''
-# socketio = SocketIO(app,cors_allowed_origins="*",  logger=True, engineio_logger=True)
-# socketio = SocketIO(app,cors_allowed_origins="*", async_mode="threading")
 
-# @app.route('/test')
-# def test():
-#     return "test"
 
-# @app.route('/')
-# def index():
-#     return render_template('index.html')
 
 @socketio.on('connect', namespace='/web')
 def connect_web():
@@ -84,8 +79,7 @@ def disconnect_cv():
 outputFrame = None
 lock = threading.Lock()
 
-#rpi_address = "http://192.168.1.23"
-rpi_address = "http://10.0.0.135"
+rpi_address = "http://192.168.1.7"
 
 # Hardcode raspberry pi streaming url for dev purpose. Move
 # this to environment variable when used in production
@@ -101,8 +95,8 @@ cap = cv2.VideoCapture(cam, cv2.CAP_ANY)
 if not cap:
     print("!!! Failed VideoCapture: invalid parameter!")
 
-known_face_encodings = []
-known_face_names = []
+# known_face_encodings = []
+# known_face_names = []
 
 # TODO: get all images from backend and encode here if pickle file is missing
 
@@ -142,8 +136,42 @@ elif exists("./img") == True:
     f.write(pickle.dumps(data))
     f.close()
 
+
+
+#SLEEP > 2-3 SECONDS AND NO SEG FAULT BUT FRAME RATE IS 0.5FPS LOLWHAT IS HAPPENING
+async def pop_lock_close(client):
+    #r= await client.get(rpi_address + ":5000/close")
+    async with requests.Session() as session:
+        r = await session.get(rpi_address + ":5000/close")
+    return r
+
+
+
+async def pop_lock_open(client):
+    #r= await client.get(rpi_address + ":5000/open")
+    async with requests.Session() as session:
+        r = await session.get(rpi_address + ":5000/open")
+    return r
+
+
+
+
 def feed_receiver():
     global outputFrame, known_face_encodings, known_face_names, device_state, open_timestamp, CLOSE_AFTER
+    client = http3.AsyncClient()
+
+#---- PROCESS FACES ---------------#
+    entries = session.query(Faces).all()
+    for row in entries:
+        filename = row.picture_file
+        name = row.face_name
+        face_image = face_recognition.load_image_file('./app/model/faces_img/' + filename)
+        pic_encoding = face_recognition.face_encodings(face_image)[0]
+        known_face_encodings = [pic_encoding]
+        known_face_names = [name]
+#---- PROCESS FACES ---------------#
+
+
 
     while(True):
         # Capture frame-by-frame
@@ -180,121 +208,22 @@ def feed_receiver():
                 print("Detected: " + name)
                 device_state = "OPEN"
                 open_timestamp = time.time()
-                requests.get(rpi_address + ":5000/open")
+                r= asyncio.run(pop_lock_open(client))
+                r.close()
+
+
+
+            # frame = cv2.imencode('.jpg', frame)[1].tobytes()
+            # frame = base64.encodebytes(frame).decode("utf-8")
+            # socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame)}, namespace='/web')
+
+            if device_state == "OPEN" and open_timestamp and time.time() - open_timestamp > CLOSE_AFTER:
+                device_state = "CLOSE"
+                open_timestamp = None
+                r= asyncio.run(pop_lock_close(client))
+                r.close()
+
 
         frame = cv2.imencode('.jpg', frame)[1].tobytes()
         frame = base64.encodebytes(frame).decode("utf-8")
         socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame)}, namespace='/web')
-
-        if device_state == "OPEN" and open_timestamp and time.time() - open_timestamp > CLOSE_AFTER:
-            device_state = "CLOSE"
-            open_timestamp = None
-            requests.get(rpi_address + ":5000/close")
-
-
-
-#class Processing():
-    
-    # def __init__(self):
-    #     self.device_state = "CLOSE"
-    #     # Hardcode raspberry pi streaming url for dev purpose. Move
-    #     # this to environment variable when used in production
-    #     self.cam = "http://10.0.0.135:9090/stream/video.jpeg"
-    #     self.cap = cv2.VideoCapture(self.cam, cv2.CAP_ANY)
-    #     self.outputFrame = None
-    #     self.open_timestamp = None
-    #     self.lock = threading.Lock()
-    #     self.known_face_encodings=[]
-    #     self.known_face_names=[]
-    #     self.CLOSE_AFTER = 8
-
-
-    # def convert_byte_to_mat(byte):
-    #     nparr = np.frombuffer(byte, np.byte)
-    #     img2 = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
-    #     return img2
-
-    # def convert_mat_to_byte(mat):
-    #     frame = cv2.imencode('.jpg', mat)[1].tobytes()
-    #     return frame
-
-    # def pull_and_train_faces(self):
-    #     # img_file = FaceServices.return_all_faces()
-    #     # send_from_directory(os.path.join(webapp.root_path, "model\\faces"), img_file.picture_file)
-    #     #print(len(img_file))
-
-
-    #     # #hardcode test
-    #     # img_file = "fafe4d2d6fc11837.jpg"
-    #     # img_name = "John" 
-    #     # #send_from_directory(os.path.join(webapp.root_path, "model\\faces_img"), img_file.picture_file
-    #     # image = face_recognition.load_image_file(send_from_directory(os.path.join(webapp.root_path, "model\\faces_img"), img_file))
-    #     # image_enc = face_recognition.face_encodings(image)[0]
-    #     # self.known_face_encodings = [image_enc]
-    #     # self.known_face_names = [img_name]
-    #     # print("train finish")
-    #     pass
-
-
-
-
-    # # def capture(self):
-    # #     cap = cv2.VideoCapture(self.cam, cv2.CAP_ANY)
-    # #     if not cap:
-    # #         print("!!! Failed VideoCapture: invalid parameter!")
-    # #     return cap
-
-
-    # def feed_receiver(self):
-    #     #global outputFrame, known_face_encodings, known_face_names, device_state, open_timestamp, CLOSE_AFTER
-
-
-    #     while(True):
-    #         # Capture frame-by-frame
-    #         ret, frame = self.cap.read()
-    #         if type(frame) == type(None):
-    #             print("!!! Couldn't read frame!")
-    #             break
-            
-    #         rgb_frame = frame[:, :, ::-1]
-    #         face_locations = face_recognition.face_locations(rgb_frame)
-    #         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-                
-    #         for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-    #             matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
-
-    #             name = "Unknown"
-
-    #             if len(self.known_face_encodings) > 0:
-    #                 face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
-    #                 best_match_index = np.argmin(face_distances)
-    #                 if matches[best_match_index]:
-    #                     name = self.known_face_names[best_match_index]
-                
-                
-    #             # Draw a box around the face
-    #             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-    #             # Draw a label with a name below the face
-    #             cv2.rectangle(frame, (left, bottom + 10), (right, bottom), (0, 0, 255), cv2.FILLED)
-    #             font = cv2.FONT_HERSHEY_DUPLEX
-    #             cv2.putText(frame, name, (left + 1, bottom + 6), font, 0.35, (255, 255, 255), 1)
-            
-    #             if self.device_state == "CLOSE" and name != "Unknown":
-    #                 print("Detected: " + name)
-    #                 self.device_state = "OPEN"
-    #                 self.open_timestamp = time.time()
-    #                 requests.get("http://10.0.0.135" + ":5000/open")
-
-    #         frame = cv2.imencode('.jpg', frame)[1].tobytes()
-    #         frame = base64.encodebytes(frame).decode("utf-8")
-    #         socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame)}, namespace='/web')
-
-    #         if self.device_state == "OPEN" and self.open_timestamp and time.time() - self.open_timestamp > self.CLOSE_AFTER:
-    #             device_state = "CLOSE"
-    #             self.open_timestamp = None
-    #             requests.get("http://10.0.0.135" + ":5000/close")
-
-        
-        
-

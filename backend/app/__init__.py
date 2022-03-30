@@ -27,8 +27,9 @@ webapp = Flask(__name__)
 api = Api(webapp, doc='/docs')
 webapp.config.from_object(Config)
 CORS(webapp)
-socketio = SocketIO(webapp,cors_allowed_origins="*",  logger=True, engineio_logger=True)
+#socketio = SocketIO(webapp,cors_allowed_origins="*",  logger=True, engineio_logger=True)
 socketio = SocketIO(webapp,cors_allowed_origins="*", async_mode="threading")
+
 
 db = SQLAlchemy(webapp)
 migrate = Migrate(webapp, db)

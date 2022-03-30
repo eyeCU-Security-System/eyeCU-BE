@@ -1,6 +1,6 @@
 import os
 from app import webapp, get_db, api, db
-from flask import json, jsonify, request, send_from_directory, Response
+from flask import json, jsonify, render_template, request, send_from_directory, Response, make_response
 from app.model.Faces import Faces
 from flask_restx import Api, Resource
 from app.model.Account import Account
@@ -18,6 +18,7 @@ import socketio
 from flask_socketio import SocketIO
 
 
+#--------STATUS RESPONSES CODE BEGIN----------------------------#
 
 #response for invalid data or errors
 def user_error_to_json(error_message):
@@ -32,13 +33,22 @@ def positiveReponse(message): # this takes in a dictionary and makes it into a p
 def createdResponse(message):
     return Response(json.dumps(message), status=201, mimetype='application/json')
 
+#--------STATUS RESPONSES CODE END----------------------------#
 
-@api.route('/eyecu')
-class LandingPage(Resource):
+
+
+
+#--------VIDEO RENDERING CODE TEST BEGIN----------------------------#
+@api.route("/video")
+class video(Resource):
     def get(self):
-        return {"hello":"world"}
-     
-    
+        return make_response(render_template("video.html"),200)
+#--------VIDEO RENDERING CODE TEST END----------------------------#     
+
+
+
+
+
 #--------REGISTRATION CODE --------------------------------#
 @api.route('/signup')
 class register(Resource):
@@ -201,7 +211,7 @@ class getFace(Resource):
         # print(len(img_obj))
 
         img_file = "fafe4d2d6fc11837.jpg"  
-        proc_vid = Processing()
+        print("landed")
 
 
 
@@ -228,12 +238,6 @@ class lockFunction(Resource):
 
 
 #-------- FR PROCESSING AND STREAMING CODE BEGIN ---------------#
-
-
-
-
-
-
 #-------- FR PROCESSING AND STREAMING CODE END ---------------#
 
 
