@@ -1,6 +1,16 @@
 #kept in separate file to avoid tempering
 from app import webapp
 from app import manager
+import threading
+#from app import feed_receiver
+from flask_socketio import SocketIO
+from app.__init__ import socketio
+from app import socketio
+from app.services.Processing import feed_receiver
+from flask import request
+import sys
+import asyncio
+
 
 
 """
@@ -22,6 +32,22 @@ RUN APP.RUN LIKE USUAL
 
 #run application
 if __name__=='__main__':
+    sys.settrace
     #manager.run()
-    webapp.run(debug = True)
+    #webapp.run(debug = True, port = 5001)
     
+
+    # Run RP feed proccessor in a sub thread
+    t = threading.Thread(target=feed_receiver)
+    t.daemon = True
+    t.start()
+
+
+    #intended to shoot feed
+    #print('[INFO] Starting server at http://localhost:5001')
+    socketio.run(app=webapp, host="localhost",port=5001)
+    
+    
+
+
+
