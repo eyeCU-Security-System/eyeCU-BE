@@ -15,10 +15,12 @@ from werkzeug.utils import secure_filename
 import asyncio
 import threading
 from flask_socketio import SocketIO
-from app.services.Processing import face_ack, rpi_address, feed_receiver
+from app.services.Processing import rpi_address, feed_receiver, get_ack
 import base64
 import cv2
 import requests
+
+# global face_ack
 
 #--------STATUS RESPONSES CODE BEGIN----------------------------#
 
@@ -218,14 +220,13 @@ pass "CLOSE" to initiate CLOSE SERVO logic
 class unlockFunction(Resource):
     #@jwt_required()
     def post(self):
-        # if face_ack == "TRUE":
-        #     call = request.get(rpi_address + ":5002/open")
-        #     return createdResponse(call)
-        # else:
-        #     return user_error_to_json({"general: Unable to lock"})
-        #request.get(rpi_address + ":5002/open")
-        requests.post(rpi_address + ":5002/open")
-        return 
+        face_ack = get_ack()
+        print("hitting unlock post face_ack: ", face_ack)
+        if face_ack == True:
+            requests.post(rpi_address + ":5002/open")
+            return positiveResponse({"general": "Open Success."})
+        else:
+            return user_error_to_json({"general": "No Face Detected. Unoperable."})
 
 @api.route("/status/close")
 class lockFunction(Resource):
@@ -255,7 +256,7 @@ def disconnect_web():
 
 
 
-# @api.route("/video")
+# @api.route("/stream")
 # class videoStream(Resource):
 #     @jwt_required()
 #     def get(self):

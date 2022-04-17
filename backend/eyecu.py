@@ -37,7 +37,7 @@ if __name__=='__main__':
     #webapp.run(debug = True, port = 5001)
     
 
-    # Run RP feed proccessor in a sub thread
+    #Run RP feed proccessor in a sub thread
     t = threading.Thread(target=feed_receiver)
     t.daemon = True
     t.start()
