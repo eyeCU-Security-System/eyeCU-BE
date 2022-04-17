@@ -63,13 +63,15 @@ def close_db(error):
 #imported after declaring so attributes has chance to be created first
 from app import routes
 from app.model.Account import Account
+from app.model.Faces import Faces
 
 
 @webapp.shell_context_processor
 def make_shell_context():
     return {
         "db": db,
-        "Account": Account
+        "Account": Account,
+        "Faces": Faces
     }
     
     

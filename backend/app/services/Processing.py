@@ -23,6 +23,7 @@ import asyncio
 from app.database import session
 
 device_state = "CLOSE"
+face_ack = "FALSE"
 open_timestamp = None
 CLOSE_AFTER = 3
 
@@ -79,7 +80,7 @@ def disconnect_cv():
 outputFrame = None
 lock = threading.Lock()
 
-rpi_address = "http://192.168.1.7"
+rpi_address = "http://192.168.1.18"
 
 # Hardcode raspberry pi streaming url for dev purpose. Move
 # this to environment variable when used in production
@@ -139,19 +140,19 @@ elif exists("./img") == True:
 
 
 #SLEEP > 2-3 SECONDS AND NO SEG FAULT BUT FRAME RATE IS 0.5FPS LOLWHAT IS HAPPENING
-async def pop_lock_close(client):
-    #r= await client.get(rpi_address + ":5000/close")
-    async with requests.Session() as session:
-        r = await session.get(rpi_address + ":5000/close")
-    return r
+# async def pop_lock_close():
+#     #r= await client.get(rpi_address + ":5000/close")
+#     async with requests.Session() as session:
+#         r = await session.get(rpi_address + ":5000/close")
+#     return r
 
 
 
-async def pop_lock_open(client):
-    #r= await client.get(rpi_address + ":5000/open")
-    async with requests.Session() as session:
-        r = await session.get(rpi_address + ":5000/open")
-    return r
+# async def pop_lock_open():
+#     #r= await client.get(rpi_address + ":5000/open")
+#     async with requests.Session() as session:
+#         r = await session.get(rpi_address + ":5000/open")
+#     return r
 
 
 
@@ -188,14 +189,16 @@ def feed_receiver():
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
 
             name = "Unknown"
+            face_ack = "FALSE"
 
             if len(known_face_encodings) > 0:
                 face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
                 best_match_index = np.argmin(face_distances)
                 if matches[best_match_index]:
                     name = known_face_names[best_match_index]
+                    face_ack = "TRUE"
             
-            
+            print("face ack: ", face_ack)
             # Draw a box around the face
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
@@ -204,25 +207,23 @@ def feed_receiver():
             font = cv2.FONT_HERSHEY_DUPLEX
             cv2.putText(frame, name, (left + 1, bottom + 6), font, 0.35, (255, 255, 255), 1)
         
-            if device_state == "CLOSE" and name != "Unknown":
-                print("Detected: " + name)
-                device_state = "OPEN"
-                open_timestamp = time.time()
-                r= asyncio.run(pop_lock_open(client))
-                r.close()
 
+            #----CONTROLS LOCK OPEN-----------#
+            # if device_state == "CLOSE" and name != "Unknown":
+            #     print("Detected: " + name)
+            #     device_state = "OPEN"
+            #     open_timestamp = time.time()
+            #     r= asyncio.run(pop_lock_open(client))
+            #     r.close()
+            #----CONTROLS LOCK OPEN-----------#
 
-
-            # frame = cv2.imencode('.jpg', frame)[1].tobytes()
-            # frame = base64.encodebytes(frame).decode("utf-8")
-            # socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame)}, namespace='/web')
-
-            if device_state == "OPEN" and open_timestamp and time.time() - open_timestamp > CLOSE_AFTER:
-                device_state = "CLOSE"
-                open_timestamp = None
-                r= asyncio.run(pop_lock_close(client))
-                r.close()
-
+            #----CONTROLS LOCK CLOSE-----------#
+            # if device_state == "OPEN" and open_timestamp and time.time() - open_timestamp > CLOSE_AFTER:
+            #     device_state = "CLOSE"
+            #     open_timestamp = None
+            #     r= asyncio.run(pop_lock_close(client))
+            #     r.close()
+            #----CONTROLS LOCK CLOSE-----------#
 
         frame = cv2.imencode('.jpg', frame)[1].tobytes()
         frame = base64.encodebytes(frame).decode("utf-8")

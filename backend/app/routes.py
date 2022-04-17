@@ -8,15 +8,17 @@ from app.database import session
 from app.services.AccountServices import AccountServices
 from app.services.FaceServices import FaceServices
 #from app.services.Processing import Processing
-from app.__init__ import jwt, userReg_model, userLogin_model, userFace_model
+from app.__init__ import jwt, userReg_model, userLogin_model, userFace_model, socketio
 from flask_jwt_extended import create_access_token, create_refresh_token,jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import asyncio
 import threading
-import socketio
 from flask_socketio import SocketIO
-
+from app.services.Processing import face_ack, rpi_address, feed_receiver
+import base64
+import cv2
+import requests
 
 #--------STATUS RESPONSES CODE BEGIN----------------------------#
 
@@ -26,12 +28,14 @@ def user_error_to_json(error_message):
 
 
 #response for successful GETs
-def positiveReponse(message): # this takes in a dictionary and makes it into a positive json 
+def positiveResponse(message): # this takes in a dictionary and makes it into a positive json 
     return Response(json.dumps(message), status=200, mimetype='application/json')
 
 #response for successful POSTs
 def createdResponse(message):
     return Response(json.dumps(message), status=201, mimetype='application/json')
+
+
 
 #--------STATUS RESPONSES CODE END----------------------------#
 
@@ -59,10 +63,6 @@ class register(Resource):
     # this function saves a new account entry to database
     # '''
     
-    # '''Test with postman'''
-    #@api.marshal_with(userReg_model)
-    # '''Test with postman END'''
-    
     @api.expect(userReg_model)
     def post(self):
         #grabs json from frontend
@@ -88,14 +88,13 @@ class register(Resource):
 
 #--------REGISTRATION CODE END--------------------------------#
     
-    
+
 #--------LOGIN CODE --------------------------------#
 #JWT Auth
 @api.route('/login')
 class login(Resource):
     #Reference
     #https://www.youtube.com/watch?v=GXVvBU_Vynk&ab_channel=SsaliJonathan
-    
     
     @api.expect(userLogin_model)
     def post(self):
@@ -115,26 +114,9 @@ class login(Resource):
             return user_error_to_json({"general":"Wrong Credentials. Please Try Again."})
         
     
-#--------LOGIN CODE END--------------------------------#    
+#--------LOGIN CODE END--------------------------------#   
 
-    
-    
-#-------- DASH CODE BEGIN -----------------------------#
-'''
-test to protect paths from non logged in visits.
-'''
-@api.route("/dash")
-class dashboard(Resource):
-    
-    
-    #this function is protected.
-    @jwt_required()
-    def get(self):
-        #gets current user by mapping jwt token to username
-        currUser = get_jwt_identity()
-        return jsonify({"Logged In": currUser})
-    
-#-------- DASH CODE END -----------------------------#        
+     
         
 #------- UPLOAD FACE CODE BEGIN -------#
 
@@ -195,49 +177,92 @@ class registerFace(Resource):
  
  
  
-#------- RETURN FACE CODE BEGIN -------# 
+#------- USER DASH CODE BEGIN -------# 
 '''
-THIS SEGMENT IS FOR TESTING PURPOSES. 
+RETURNS USER INFO FOR PROFILE PAGE
 '''
-@api.route("/get_face")
-class getFace(Resource):
+@api.route("/user")
+class getUser(Resource):
+    @jwt_required()
     def get(self):
-    #     img_file = session.query(Faces).first()
-        
-    #     print(img_file.face_name)
-    # #     print(os.path.join(webapp.root_path, 'model\\faces_img'))
-    #     return send_from_directory(os.path.join(webapp.root_path, "model\\faces_img"), img_file.picture_file)
-        # img_obj = Processing.pull_faces()
-        # print(len(img_obj))
+        # Access the identity of the current user with get_jwt_identity
+        current_user = get_jwt_identity() # this tells us the identity of the user/ This should be the primary key
+        user_data = {}
+        user_obj = session.query(Account).filter_by(username = current_user).first()
+        file = session.query(Faces).filter_by(user_id = user_obj.id).first()
+        filename = file.picture_file
+        path = os.path.join(webapp.root_path, 'model/faces_img', filename)
+        frame = cv2.imread(path)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        small_frame_bytes = cv2.imencode('.jpg', small_frame)[1].tobytes()
+        sender = base64.encodebytes(small_frame_bytes).decode("utf-8")
 
-        img_file = "fafe4d2d6fc11837.jpg"  
-        print("landed")
-
-
-
+        user_data["user_data"] = {
+            "full_name":current_user,
+            'image':"data:image/jpeg;base64,{}".format(sender)
+        }
+        return positiveResponse(user_data)
     
-#------- RETURN FACE CODE END -------# 
+#------- USER DASH CODE END -------# 
         
         
         
 #-------- SERVO CONTROL CODE BEGIN -----------------------------#
 '''
 param: string
+
 pass "OPEN" to initiate OPEN SERVO logic
 pass "CLOSE" to initiate CLOSE SERVO logic
 '''          
 @api.route("/status/open")
-class lockFunction(Resource):
-    @jwt_required()
+class unlockFunction(Resource):
+    #@jwt_required()
     def post(self):
-        pass
+        # if face_ack == "TRUE":
+        #     call = request.get(rpi_address + ":5002/open")
+        #     return createdResponse(call)
+        # else:
+        #     return user_error_to_json({"general: Unable to lock"})
+        #request.get(rpi_address + ":5002/open")
+        requests.post(rpi_address + ":5002/open")
+        return 
+
+@api.route("/status/close")
+class lockFunction(Resource):
+    #@jwt_required()
+    def post(self):
+        requests.post(rpi_address + ":5002/close")
+
+        return 
         
-        
+
+          
 #-------- SERVO CONTROL CODE BEGIN -----------------------------#           
   
 
 
+
+
 #-------- FR PROCESSING AND STREAMING CODE BEGIN ---------------#
+@socketio.on('connect', namespace='/web')
+def connect_web():
+    print('[INFO] Web client connected: {}'.format(request.sid))
+
+
+@socketio.on('disconnect', namespace='/web')
+def disconnect_web():
+    print('[INFO] Web client disconnected: {}'.format(request.sid))
+
+
+
+# @api.route("/video")
+# class videoStream(Resource):
+#     @jwt_required()
+#     def get(self):
+#         # Run RP feed proccessor in a sub thread ONLY WHEN PAGE IS ACTIVE
+#         t = threading.Thread(target=feed_receiver)
+#         t.daemon = True
+#         t.start()
 #-------- FR PROCESSING AND STREAMING CODE END ---------------#
 
 
