@@ -254,16 +254,6 @@ def connect_web():
 def disconnect_web():
     print('[INFO] Web client disconnected: {}'.format(request.sid))
 
-
-
-# @api.route("/stream")
-# class videoStream(Resource):
-#     @jwt_required()
-#     def get(self):
-#         # Run RP feed proccessor in a sub thread ONLY WHEN PAGE IS ACTIVE
-#         t = threading.Thread(target=feed_receiver)
-#         t.daemon = True
-#         t.start()
 #-------- FR PROCESSING AND STREAMING CODE END ---------------#
 
 

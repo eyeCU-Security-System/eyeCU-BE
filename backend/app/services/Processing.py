@@ -53,7 +53,7 @@ def disconnect_web():
 outputFrame = None
 lock = threading.Lock()
 
-rpi_address = "http://192.168.1.18"
+rpi_address = "http://192.168.1.8"
 
 # Hardcode raspberry pi streaming url for dev purpose. Move
 # this to environment variable when used in production
@@ -75,6 +75,8 @@ def get_ack():
 
 def feed_receiver():
     global outputFrame, known_face_encodings, known_face_names, device_state, open_timestamp, CLOSE_AFTER, face_ack
+
+    face_ack = False
 #---- PROCESS FACES ---------------#
     entries = session.query(Faces).all()
     for row in entries:
@@ -86,7 +88,7 @@ def feed_receiver():
         known_face_names = [name]
 #---- PROCESS FACES ---------------#
 
-    face_ack = False
+    #face_ack = False
 
     while(True):
         # Capture frame-by-frame
@@ -100,7 +102,7 @@ def feed_receiver():
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
             
         for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance = .25)
 
             name = "Unknown"
         
@@ -115,7 +117,7 @@ def feed_receiver():
                 else:
                     face_ack = False
                     #socketio.emit('face_ack', {'face_ack': face_ack}, namespace = "/web")
-            print("face ack: ", face_ack)
+            #print("face ack: ", face_ack)
             # Draw a box around the face
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
