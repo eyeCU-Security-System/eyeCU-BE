@@ -33,7 +33,7 @@ RUN APP.RUN LIKE USUAL
 #run application
 if __name__=='__main__':
     #manager.run()
-    #webapp.run(debug = True, port = 5001)
+
     
 
     #Run RP feed proccessor in a sub thread

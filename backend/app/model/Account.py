@@ -14,9 +14,9 @@ class Account(Base):
     __tablename__ = 'accounts'
     
     id = Column(Integer, primary_key = True)
-    username = Column(String(64), index = True, nullable = False, unique = True)
+    username = Column(String(64), index = True, nullable = False, unique = False)
     password = Column(String(64), index = True, nullable = False, unique = False)
-    email = Column(String(64), index = True, nullable = False, unique = False)
+    email = Column(String(64), index = True, nullable = False, unique = True)
    
     
     def __repr__(self):

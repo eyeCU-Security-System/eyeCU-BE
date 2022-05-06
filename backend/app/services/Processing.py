@@ -28,7 +28,7 @@ open_timestamp = None
 CLOSE_AFTER = 3
 face_ack = True
 stop = False
-
+lock = threading.Lock()
 
 def convert_byte_to_mat(byte):
     nparr = np.frombuffer(byte, np.byte)
@@ -45,6 +45,7 @@ def connect_web():
     global stop
     print('[INFO] Processing.py Web client connected: {}'.format(request.sid))
     if stop == True:
+        stop = False
         print("restarting camera thread...")
         t = threading.Thread(target=feed_receiver)
         t.daemon = True
@@ -106,32 +107,40 @@ def feed_receiver():
         
         rgb_frame = frame[:, :, ::-1]
         face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+        if face_locations:
+            face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+                
+            for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+                matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+
+                name = "Unknown"
             
-        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
 
+                if len(known_face_encodings) > 0:
+                    face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+                    best_match_index = np.argmin(face_distances)
+                    if matches[best_match_index]:
+                        name = known_face_names[best_match_index]
+                        face_ack = True
+            
+                    # else:
+                    #     face_ack = False
+
+                #socketio.emit('name', {'name': name}, namespace='/web')
+                # Draw a box around the face
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+                # Draw a label with a name below the face
+                cv2.rectangle(frame, (left, bottom + 10), (right, bottom), (0, 0, 255), cv2.FILLED)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(frame, name, (left + 1, bottom + 6), font, 0.35, (255, 255, 255), 1)
+        else:
+            face_ack = False
             name = "Unknown"
-        
-
-            if len(known_face_encodings) > 0:
-                face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-                best_match_index = np.argmin(face_distances)
-                if matches[best_match_index]:
-                    name = known_face_names[best_match_index]
-                    face_ack = True
-        
-                else:
-                    face_ack = False
-    
-            # Draw a box around the face
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-            # Draw a label with a name below the face
-            cv2.rectangle(frame, (left, bottom + 10), (right, bottom), (0, 0, 255), cv2.FILLED)
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(frame, name, (left + 1, bottom + 6), font, 0.35, (255, 255, 255), 1)
+            #socketio.emit('name', {'name': name}, namespace='/web')
 
         frame = cv2.imencode('.jpg', frame)[1].tobytes()
         frame = base64.encodebytes(frame).decode("utf-8")
-        socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame)}, namespace='/web')
+        socketio.emit('server2web', {'image':"data:image/jpeg;base64,{}".format(frame), 'name': name}, namespace='/web')
+
+    return 0 

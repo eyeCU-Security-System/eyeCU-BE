@@ -71,16 +71,19 @@ class register(Resource):
         password = data.get('password')
         email = data.get('email')
         
-        #queries table User for an existing username
-        db_user = session.query(Account).filter_by(username = username).first()
+        #queries table User for an existing email
+        db_user = session.query(Account).filter_by(email = email).first()
         if db_user is not None:
-            return user_error_to_json({"general":f"{username} Already Taken. Please Try Again."})
+            return user_error_to_json({"general":f"{email} Already Taken. Please Try Again."})
         
         #appends data if no issues#
         AccountServices.createAcc(username, password, email)
         
         #communicate with frontend
-        access_token = create_access_token(identity=username)
+        access_token = create_access_token(identity=email)
+        # t = threading.Thread(target=feed_receiver)
+        # t.daemon = True
+        # t.start()
         return createdResponse({"token": access_token})
 
 #--------REGISTRATION CODE END--------------------------------#
@@ -98,13 +101,13 @@ class login(Resource):
         
         data = request.get_json()
         
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')    
         
-        db_user = session.query(Account).filter_by(username = username).first()
+        db_user = session.query(Account).filter_by(email = email).first()
         
         if db_user and check_password_hash(db_user.password, password):
-            access_token = create_access_token(identity=db_user.username)
+            access_token = create_access_token(identity=db_user.email)
             t = threading.Thread(target=feed_receiver)
             t.daemon = True
             t.start()
@@ -138,7 +141,7 @@ async def async_upload_face(self):
     if valid == 1:
         curr_user = get_jwt_identity()
         mimetype = pic.mimetype
-        userObj = session.query(Account).filter_by(username = curr_user).first()
+        userObj = session.query(Account).filter_by(email = curr_user).first()
         face_name = userObj.username
         user_id = userObj.id
         #Async Call to Store Face
@@ -179,7 +182,7 @@ class getUser(Resource):
         # Access the identity of the current user with get_jwt_identity
         current_user = get_jwt_identity() # this tells us the identity of the user/ This should be the primary key
         user_data = {}
-        user_obj = session.query(Account).filter_by(username = current_user).first()
+        user_obj = session.query(Account).filter_by(email = current_user).first()
         file = session.query(Faces).filter_by(user_id = user_obj.id).first()
         if(file):
             filename = file.picture_file
