@@ -10,7 +10,7 @@ from app.services.Processing import feed_receiver
 from flask import request
 import sys
 import asyncio
-
+from multiprocessing import Process, Lock
 
 
 """
@@ -32,20 +32,28 @@ RUN APP.RUN LIKE USUAL
 
 #run application
 if __name__=='__main__':
-    sys.settrace
     #manager.run()
     #webapp.run(debug = True, port = 5001)
     
 
     #Run RP feed proccessor in a sub thread
-    t = threading.Thread(target=feed_receiver)
-    t.daemon = True
-    t.start()
+    # stop_threads = False
+    # t = threading.Thread(target=feed_receiver, args = (lambda : stop_threads, ))
+    # t.daemon = True
+    # t.start()
 
+
+    # p = Process(target=feed_receiver)
+    # p.start()
+
+    # t = threading.Thread(target=feed_receiver)
+    # t.daemon = True
+    # t.start()
+    
 
     #intended to shoot feed
     #print('[INFO] Starting server at http://localhost:5001')
-    socketio.run(app=webapp,host = 'localhost',port=5001, debug=True)
+    socketio.run(app=webapp,host = '0.0.0.0',port=5001)
     
     
 

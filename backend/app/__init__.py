@@ -37,27 +37,27 @@ manager = Manager(webapp)
 manager.add_command('db', MigrateCommand)
 jwt = JWTManager(webapp)
 
-def connect_db():
-    sql = sqlite3.connect('.\database\eyecu.db')
-    #sql.row_factory = sqlite3.Row
+# def connect_db():
+#     sql = sqlite3.connect('.\database\eyecu.db')
+#     #sql.row_factory = sqlite3.Row
     
-    print('db connected successfully')
-    return sql
+#     print('db connected successfully')
+#     return sql
 
-def get_db():
-    #if no connection to db has been made
-    if not hasattr(g, 'sqlite3'):
-        g.sqlite3_db = connect_db()
+# def get_db():
+#     #if no connection to db has been made
+#     if not hasattr(g, 'sqlite3'):
+#         g.sqlite3_db = connect_db()
         
-    print("db queried successfully")
-    return g.sqlite3_db
+#     print("db queried successfully")
+#     return g.sqlite3_db
 
 
-#close db connection when a request is done
-@webapp.teardown_appcontext
-def close_db(error):
-    if hasattr(g, 'sqlite3'):
-        g.sqlite3.close()
+# #close db connection when a request is done
+# @webapp.teardown_appcontext
+# def close_db(error):
+#     if hasattr(g, 'sqlite3'):
+#         g.sqlite3.close()
 
 
 #imported after declaring so attributes has chance to be created first
@@ -107,9 +107,6 @@ userFace_model = api.model(
     "Face",
     {
         "picture_file": fields.String(),
-        "face_name": fields.String(),
-        "mimetype": fields.String(),
-        "user_id": fields.Integer()
     }
 )
 

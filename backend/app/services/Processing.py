@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 import base64
 from os.path import exists
-import requests_async as requests
 import http3
 import threading
 from flask import Response
@@ -22,11 +21,13 @@ from app import webapp
 from app.model.Faces import Faces
 import asyncio
 from app.database import session
+import requests
 
 device_state = "CLOSE"
 open_timestamp = None
 CLOSE_AFTER = 3
 face_ack = True
+stop = False
 
 
 def convert_byte_to_mat(byte):
@@ -41,20 +42,29 @@ def convert_mat_to_byte(mat):
 
 @socketio.on('connect', namespace='/web')
 def connect_web():
-    print('[INFO] Web client connected: {}'.format(request.sid))
+    global stop
+    print('[INFO] Processing.py Web client connected: {}'.format(request.sid))
+    if stop == True:
+        print("restarting camera thread...")
+        t = threading.Thread(target=feed_receiver)
+        t.daemon = True
+        t.start()
 
 
 @socketio.on('disconnect', namespace='/web')
 def disconnect_web():
-    print('[INFO] Web client disconnected: {}'.format(request.sid))
+    global stop
+    print('[INFO] Processing.py Web client disconnected: {}'.format(request.sid))
+    stop = True
+    
 
 
 
 outputFrame = None
 lock = threading.Lock()
 
-rpi_address = "http://192.168.1.8"
-
+rpi_address = "http://192.168.1.13"
+#rpi_address = "http://10.0.0.136"
 # Hardcode raspberry pi streaming url for dev purpose. Move
 # this to environment variable when used in production
 cam = rpi_address + ":9090/stream/video.jpeg"
@@ -63,8 +73,6 @@ cam = rpi_address + ":9090/stream/video.jpeg"
 # TODO: uncomment this for prod
 cap = cv2.VideoCapture(cam, cv2.CAP_ANY)
 
-# Mock data from local video in case there is no RP
-#cap = cv2.VideoCapture("C:\\Users\\valer\\Downloads\\Video.mp4")
 
 if not cap:
     print("!!! Failed VideoCapture: invalid parameter!")
@@ -74,9 +82,10 @@ def get_ack():
     return face_ack
 
 def feed_receiver():
-    global outputFrame, known_face_encodings, known_face_names, device_state, open_timestamp, CLOSE_AFTER, face_ack
-
+    global outputFrame, device_state, open_timestamp, CLOSE_AFTER, face_ack, stop
     face_ack = False
+    known_face_encodings = []
+    known_face_names = []
 #---- PROCESS FACES ---------------#
     entries = session.query(Faces).all()
     for row in entries:
@@ -87,10 +96,8 @@ def feed_receiver():
         known_face_encodings = [pic_encoding]
         known_face_names = [name]
 #---- PROCESS FACES ---------------#
-
-    #face_ack = False
-
-    while(True):
+    stop = False
+    while not stop:
         # Capture frame-by-frame
         ret, frame = cap.read()
         if type(frame) == type(None):
@@ -102,7 +109,7 @@ def feed_receiver():
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
             
         for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance = .25)
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
 
             name = "Unknown"
         
@@ -113,11 +120,10 @@ def feed_receiver():
                 if matches[best_match_index]:
                     name = known_face_names[best_match_index]
                     face_ack = True
-                    #socketio.emit('face_ack', {'face_ack': face_ack}, namespace = "/web")
+        
                 else:
                     face_ack = False
-                    #socketio.emit('face_ack', {'face_ack': face_ack}, namespace = "/web")
-            #print("face ack: ", face_ack)
+    
             # Draw a box around the face
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 

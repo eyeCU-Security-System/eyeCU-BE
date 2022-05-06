@@ -1,5 +1,5 @@
 import os
-from app import webapp, get_db, api, db
+from app import webapp, api
 from flask import json, jsonify, render_template, request, send_from_directory, Response, make_response
 from app.model.Faces import Faces
 from flask_restx import Api, Resource
@@ -19,8 +19,16 @@ from app.services.Processing import rpi_address, feed_receiver, get_ack
 import base64
 import cv2
 import requests
+import face_recognition
+import numpy as np
 
-# global face_ack
+
+# def start_vid():
+#     global stop_run
+#     t = threading.Thread(target=feed_receiver(stop_run))
+#     t.daemon = True
+#     t.start()
+#     return
 
 #--------STATUS RESPONSES CODE BEGIN----------------------------#
 
@@ -40,19 +48,6 @@ def createdResponse(message):
 
 
 #--------STATUS RESPONSES CODE END----------------------------#
-
-
-
-
-#--------VIDEO RENDERING CODE TEST BEGIN----------------------------#
-@api.route("/video")
-class video(Resource):
-    def get(self):
-        return make_response(render_template("video.html"),200)
-#--------VIDEO RENDERING CODE TEST END----------------------------#     
-
-
-
 
 
 #--------REGISTRATION CODE --------------------------------#
@@ -110,7 +105,9 @@ class login(Resource):
         
         if db_user and check_password_hash(db_user.password, password):
             access_token = create_access_token(identity=db_user.username)
-            refresh_token = create_refresh_token(identity=db_user.username)
+            t = threading.Thread(target=feed_receiver)
+            t.daemon = True
+            t.start()
             return createdResponse({"token": access_token})
         else:
             return user_error_to_json({"general":"Wrong Credentials. Please Try Again."})
@@ -127,24 +124,26 @@ class login(Resource):
 @api.expect(userFace_model)
 @asyncio.coroutine
 async def async_upload_face(self):
-    pic = request.files["image"]
-        
+    pic = request.files["file"]
     if not pic:
         return user_error_to_json({"general": "No File Uploaded."})
       
     filename = secure_filename(pic.filename)
-    
     #Async Call to Validate
+    print("validating... ")
+
     valid = await FaceServices.validate_picture(pic)
 
+    print("validating done")
     if valid == 1:
-        face_name = request.form.get("data")
-        mimetype = pic.mimetype
         curr_user = get_jwt_identity()
+        mimetype = pic.mimetype
         userObj = session.query(Account).filter_by(username = curr_user).first()
-
+        face_name = userObj.username
+        user_id = userObj.id
         #Async Call to Store Face
-        await FaceServices.init_face(pic, filename, face_name, mimetype, userObj.id)
+        await FaceServices.init_face(pic, filename, face_name, mimetype, user_id)
+        print("storing...")
         return createdResponse({"general": "Face Is Recognized and Saved."})
     elif valid > 1:
         return user_error_to_json({"general": "Too Many Faces Detected. Please Show 1 Face."})
@@ -152,9 +151,8 @@ async def async_upload_face(self):
         return user_error_to_json({"general": "No Faces Detected. Please Show 1 Face."})
 
 
-@api.route("/dash/register_face")
+@api.route("/upload")
 class registerFace(Resource):
-    
     '''
     Creates coroutine to run concurrently 
     goal: not stall server while running validation and storing
@@ -162,17 +160,8 @@ class registerFace(Resource):
     @jwt_required()
     @api.expect(userFace_model)
     def post(self):
-        
-        '''
-        dunno if need these statements
-        '''
-        #asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        # loop = asyncio.new_event_loop()
-        # asyncio.set_event_loop(loop)
-        
         response = asyncio.run(async_upload_face(self))
         response.close()
-        #loop.close()
         return response
        
 #------- UPLOAD FACE CODE END -------#
@@ -192,12 +181,20 @@ class getUser(Resource):
         user_data = {}
         user_obj = session.query(Account).filter_by(username = current_user).first()
         file = session.query(Faces).filter_by(user_id = user_obj.id).first()
-        filename = file.picture_file
-        path = os.path.join(webapp.root_path, 'model/faces_img', filename)
-        frame = cv2.imread(path)
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-        small_frame_bytes = cv2.imencode('.jpg', small_frame)[1].tobytes()
-        sender = base64.encodebytes(small_frame_bytes).decode("utf-8")
+        if(file):
+            filename = file.picture_file
+            path = os.path.join(webapp.root_path, 'model/faces_img', filename)
+            frame = cv2.imread(path)
+            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+            small_frame_bytes = cv2.imencode('.jpg', small_frame)[1].tobytes()
+            sender = base64.encodebytes(small_frame_bytes).decode("utf-8")
+        else:
+            filename = "default.jpeg"
+            path = os.path.join(webapp.root_path, 'model/faces_img', filename)
+            frame = cv2.imread(path)
+            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+            small_frame_bytes = cv2.imencode('.jpg', small_frame)[1].tobytes()
+            sender = base64.encodebytes(small_frame_bytes).decode("utf-8")
 
         user_data["user_data"] = {
             "full_name":current_user,
@@ -218,10 +215,9 @@ pass "CLOSE" to initiate CLOSE SERVO logic
 '''          
 @api.route("/status/open")
 class unlockFunction(Resource):
-    #@jwt_required()
     def post(self):
         face_ack = get_ack()
-        print("hitting unlock post face_ack: ", face_ack)
+        #print("hitting unlock post face_ack: ", face_ack)
         if face_ack == True:
             requests.post(rpi_address + ":5002/open")
             return positiveResponse({"general": "Open Success."})
@@ -230,13 +226,10 @@ class unlockFunction(Resource):
 
 @api.route("/status/close")
 class lockFunction(Resource):
-    #@jwt_required()
     def post(self):
         requests.post(rpi_address + ":5002/close")
-
         return 
-        
-
+    
           
 #-------- SERVO CONTROL CODE BEGIN -----------------------------#           
   
@@ -245,16 +238,59 @@ class lockFunction(Resource):
 
 
 #-------- FR PROCESSING AND STREAMING CODE BEGIN ---------------#
-@socketio.on('connect', namespace='/web')
-def connect_web():
-    print('[INFO] Web client connected: {}'.format(request.sid))
+# @socketio.on('connect', namespace='/web')
+# def connect_web():
+#     print('[INFO] Web client connected: {}'.format(request.sid))
 
 
-@socketio.on('disconnect', namespace='/web')
-def disconnect_web():
-    print('[INFO] Web client disconnected: {}'.format(request.sid))
+# @socketio.on('disconnect', namespace='/web')
+# def disconnect_web():
+#     print('[INFO] Web client disconnected: {}'.format(request.sid))
 
 #-------- FR PROCESSING AND STREAMING CODE END ---------------#
+# @api.route("/faces")
+# class getFaces(Resource):
+#     @jwt_required()
+#     def get(self):
+#         global known_face_encodings, known_face_names
+#         known_face_encodings = []
+#         known_face_names = []
+#     #---- PROCESS FACES ---------------#
+#         curr_user = get_jwt_identity()
+#         #print(curr_user)
+#         user = session.query(Account).filter_by(username = curr_user).first()
+#         entries = session.query(Faces).filter_by(user_id = user.id).first()
+#         #entries = session.query(Faces).all()
+#         if entries:
+#             # for row in entries:
+#             filename = entries.picture_file
+#             name = entries.face_name
+#             face_image = face_recognition.load_image_file('./app/model/faces_img/' + filename)
+#             pic_encoding = face_recognition.face_encodings(face_image)[0]
+#             known_face_encodings = [pic_encoding]
+#             known_face_names = [name]
+#     #---- PROCESS FACES ---------------#
+#         else:
+#             return [],[]
+#         return known_face_encodings, known_face_names
+
+# @api.route("/stop")
+# class vidStop(Resource):
+#     def get(self):
+#         global stop_run
+#         stop_run = True
+#         return
 
 
+# @api.route("/run")
+# class vidRun(Resource):
+#     def get(self):
+#         global stop_run
+#         stop_run = False
+#         start_vid()
+#         return
+    
 
+# https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/ 
+# LOOK INTO KILLING CHILD THREAD TO UPLOAD FACE
+# AND THEN RESTART VIDEO THREAD 

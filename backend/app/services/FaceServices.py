@@ -36,9 +36,17 @@ class FaceServices():
         return jsonify({"message":"Picture Uploaded"})
         
     async def validate_picture(pic):
+        print("inside validate ")
         test_image = face_recognition.load_image_file(pic)
-        face_locations = face_recognition.face_locations(test_image)
+        print("got pics ")
+        try:
+            face_locations = face_recognition.face_locations(test_image)
+        except:
+            print("cant grab faces")
+        print("found faces...")
+        print("encoding faces.. ")
         face_encodings = face_recognition.face_encodings(test_image, face_locations)
+        print("face encoded...")
         return len(face_encodings)
 
     def return_all_faces():
