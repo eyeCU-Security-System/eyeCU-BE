@@ -40,7 +40,3 @@ ONCE RAN, COMMENT OUT manager.run() AND
 RUN APP.RUN LIKE USUAL
 """
 
-START FRONT END
-1. cd to frontend folder
-2. in terminal : ' npm start '
-
